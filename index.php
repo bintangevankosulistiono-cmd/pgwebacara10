@@ -4,6 +4,7 @@ declare(strict_types=1);
 require __DIR__ . '/db.php';
 require __DIR__ . '/csrf.php';
 
+// Mengambil seluruh data fasilitas untuk ditampilkan pada tabel dan peta.
 $result = $conn->query(
     'SELECT id, kecamatan, kelurahan, kategori, nama_fasilitas, alamat, latitude, longitude
      FROM fasilitas_kesehatan ORDER BY id'
@@ -14,9 +15,11 @@ if ($result === false) {
     exit('Data tidak dapat dibaca. Pastikan tabel fasilitas_kesehatan sudah dibuat.');
 }
 
+// Menyimpan hasil query agar data yang sama dapat dipakai tabel dan JavaScript.
 $rows = $result->fetch_all(MYSQLI_ASSOC);
 $mapPoints = [];
 $mapPointIds = [];
+// Menyiapkan hanya koordinat yang valid sebagai titik pada peta Leaflet.
 foreach ($rows as $row) {
     $latitude = (float) $row['latitude'];
     $longitude = (float) $row['longitude'];
@@ -35,6 +38,7 @@ foreach ($rows as $row) {
     $mapPointIds[(int) $row['id']] = true;
 }
 
+// Meloloskan karakter khusus sehingga data dari database aman saat dirender sebagai HTML.
 function e(string|int|float|null $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -46,8 +50,10 @@ function e(string|int|float|null $value): string
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Data Fasilitas Kesehatan</title>
+    <!-- Leaflet CSS mengatur tampilan peta, kontrol, dan penanda. -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
     <style>
+        /* Aturan dasar untuk tata letak halaman, panel, tabel, dan peta. */
         body { margin: 0; color: #1f2937; background: #f3f6f8; font-family: Arial, sans-serif; }
         main { max-width: 1200px; margin: 0 auto; padding: 24px; }
         h1 { margin-top: 0; }
@@ -62,14 +68,17 @@ function e(string|int|float|null $value): string
         button, .button-link { display: inline-block; padding: 6px 9px; border: 0; border-radius: 5px; color: #fff; background: #176b87; font: inherit; text-decoration: none; cursor: pointer; }
         td form button { background: #a33333; }
         .map-popup h3 { margin: 0 0 6px; }
+        /* Mengurangi jarak dan tinggi peta agar lebih nyaman di layar ponsel. */
         @media (max-width: 600px) { main { padding: 14px; } #map { height: 360px; } }
     </style>
 </head>
 <body>
 <main>
     <h1>Data Fasilitas Kesehatan Kota Malang</h1>
+    <!-- Tautan menuju formulir penambahan fasilitas baru. -->
     <p class="toolbar"><a class="button-link" href="input/index.php">Tambah data</a></p>
     <?php
+    // Pesan ditentukan di server agar parameter URL tidak langsung ditampilkan.
     $messages = [
         'saved' => 'Data fasilitas kesehatan berhasil disimpan.',
         'updated' => 'Data fasilitas kesehatan berhasil diperbarui.',
@@ -81,6 +90,7 @@ function e(string|int|float|null $value): string
         <p role="status"><?= e($messages[$status]) ?></p>
     <?php endif; ?>
     <?php if ($rows !== []): ?>
+        <!-- Wadah peta hanya dibuat jika database memiliki data fasilitas. -->
         <section class="panel" aria-labelledby="map-heading">
             <h2 id="map-heading">Peta Lokasi Fasilitas</h2>
             <?php if ($mapPoints !== []): ?>
@@ -89,6 +99,7 @@ function e(string|int|float|null $value): string
                 <p>Belum ada koordinat yang valid untuk ditampilkan pada peta.</p>
             <?php endif; ?>
         </section>
+        <!-- Tabel menampilkan data lengkap dan aksi lihat, edit, serta hapus. -->
         <section class="panel" aria-labelledby="table-heading">
         <h2 id="table-heading">Daftar Fasilitas</h2>
         <div class="table-wrap"><table>
@@ -115,6 +126,7 @@ function e(string|int|float|null $value): string
                         <td><?= e($row['alamat']) ?></td>
                         <td><?= e($row['latitude']) ?></td>
                         <td><?= e($row['longitude']) ?></td>
+                        <!-- Tombol ini menghubungkan baris tabel dengan marker ber-ID sama. -->
                         <td><?php if (isset($mapPointIds[(int) $row['id']])): ?><button type="button" class="show-on-map" data-map-id="<?= e($row['id']) ?>">Lihat di peta</button><?php else: ?>Koordinat tidak valid<?php endif; ?></td>
                         <td><a href="edit/index.php?id=<?= e($row['id']) ?>">edit</a></td>
                         <td>
@@ -133,10 +145,14 @@ function e(string|int|float|null $value): string
         <p>0 results</p>
     <?php endif; ?>
     <?php if ($mapPoints !== []): ?>
+    <!-- Leaflet JS membuat basemap, marker, popup, kontrol layer, dan skala. -->
     <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
     <script>
+        // Mengirim data titik dari PHP ke JavaScript dengan karakter HTML di-escape.
         const facilityPoints = <?= json_encode($mapPoints, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_THROW_ON_ERROR) ?>;
         const map = L.map('map');
+
+        // Menyediakan dua pilihan basemap beserta atribusi sumber petanya.
         const streetLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
             maxZoom: 19,
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -147,10 +163,13 @@ function e(string|int|float|null $value): string
         });
         streetLayer.addTo(map);
 
+        // Membuat satu layer berisi seluruh fasilitas dan indeks marker berdasarkan ID.
         const facilityLayer = L.featureGroup().addTo(map);
         const markersById = new Map();
         facilityPoints.forEach((facility) => {
             const marker = L.marker([facility.latitude, facility.longitude]).addTo(facilityLayer);
+
+            // Popup dibangun dengan textContent agar teks database tidak diperlakukan sebagai HTML.
             const popup = document.createElement('div');
             popup.className = 'map-popup';
             const title = document.createElement('h3');
@@ -166,6 +185,7 @@ function e(string|int|float|null $value): string
             markersById.set(String(facility.id), marker);
         });
 
+        // Kontrol layer mengatur basemap/layer fasilitas; scale menampilkan skala jarak.
         L.control.layers(
             { 'Peta jalan': streetLayer, 'Citra satelit': imageryLayer },
             { 'Fasilitas kesehatan': facilityLayer },
@@ -173,6 +193,7 @@ function e(string|int|float|null $value): string
         ).addTo(map);
         L.control.scale({ maxWidth: 150, position: 'bottomright' }).addTo(map);
 
+        // Memusatkan peta pada satu titik atau membingkai semua titik sekaligus.
         const bounds = facilityLayer.getBounds();
         if (facilityPoints.length === 1) {
             map.setView(bounds.getCenter(), 15);
@@ -180,6 +201,7 @@ function e(string|int|float|null $value): string
             map.fitBounds(bounds, { padding: [24, 24], maxZoom: 15 });
         }
 
+        // Tombol tabel memindahkan peta ke marker yang sesuai lalu membuka popup.
         document.querySelectorAll('.show-on-map').forEach((button) => {
             button.addEventListener('click', () => {
                 const marker = markersById.get(button.dataset.mapId);

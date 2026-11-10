@@ -4,12 +4,14 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/db.php';
 require dirname(__DIR__) . '/csrf.php';
 
+// Membaca dan memvalidasi ID fasilitas yang akan diedit.
 $id = filter_var($_GET['id'] ?? null, FILTER_VALIDATE_INT);
 if ($id === false || $id === null || $id < 1) {
     http_response_code(400);
     exit('ID data tidak valid.');
 }
 
+// Mengambil satu baris data agar nilainya dapat diisikan ke formulir edit.
 $stmt = $conn->prepare(
     'SELECT kecamatan, kelurahan, kategori, nama_fasilitas, alamat, latitude, longitude
      FROM fasilitas_kesehatan WHERE id = ?'
@@ -35,6 +37,7 @@ if ($row === null) {
     exit('Data fasilitas kesehatan tidak ditemukan.');
 }
 
+// Mengubah karakter khusus menjadi entitas HTML sebelum nilai ditampilkan.
 function e(string|int|float|null $value): string
 {
     return htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -49,9 +52,12 @@ function e(string|int|float|null $value): string
 </head>
 <body>
     <h2>Edit Fasilitas Kesehatan</h2>
+    <!-- Form mengirim nilai yang diperbarui dan ID fasilitas ke update.php. -->
     <form action="update.php" method="post" id="form-edit">
+        <!-- ID dan token CSRF ikut dikirim, tetapi tidak ditampilkan sebagai kolom. -->
         <input type="hidden" name="id" value="<?= e($id) ?>">
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <!-- Nilai lama dimuat agar pengguna dapat mengubah kolom yang diperlukan. -->
         <label for="kecamatan">Kecamatan:</label><br>
         <input type="text" id="kecamatan" name="kecamatan" maxlength="100" required value="<?= e($row['kecamatan']) ?>"><br>
         <label for="kelurahan">Kelurahan:</label><br>
@@ -62,6 +68,7 @@ function e(string|int|float|null $value): string
         <input type="text" id="nama_fasilitas" name="nama_fasilitas" maxlength="150" required value="<?= e($row['nama_fasilitas']) ?>"><br>
         <label for="alamat">Alamat:</label><br>
         <input type="text" id="alamat" name="alamat" maxlength="255" required value="<?= e($row['alamat']) ?>"><br>
+        <!-- Koordinat lama dapat dipertahankan atau diganti saat mengedit data. -->
         <label for="latitude">Latitude:</label><br>
         <input type="number" id="latitude" name="latitude" min="-90" max="90" step="any" required value="<?= e($row['latitude']) ?>"><br>
         <label for="longitude">Longitude:</label><br>
@@ -71,6 +78,7 @@ function e(string|int|float|null $value): string
     <p id="informasi"></p>
     <p><a href="../index.php">Kembali</a></p>
     <script>
+        // Validasi browser mencegah teks kosong dan koordinat di luar rentang bumi.
         document.getElementById('form-edit').addEventListener('submit', function (event) {
             const form = event.currentTarget;
             const latitude = Number(form.elements.latitude.value);

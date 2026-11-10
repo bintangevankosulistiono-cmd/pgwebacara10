@@ -1,9 +1,11 @@
+-- Membuat database aplikasi dengan encoding yang mendukung berbagai karakter.
 CREATE DATABASE IF NOT EXISTS kesehatan
   CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
 
 USE kesehatan;
 
+-- Menyimpan data fasilitas, termasuk koordinat untuk penanda pada peta.
 CREATE TABLE IF NOT EXISTS fasilitas_kesehatan (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   kecamatan VARCHAR(100) NOT NULL,
@@ -18,6 +20,7 @@ CREATE TABLE IF NOT EXISTS fasilitas_kesehatan (
   CHECK (longitude BETWEEN -180 AND 180)
 );
 
+-- Memasukkan satu data contoh hanya jika data yang sama belum tersedia.
 INSERT INTO fasilitas_kesehatan
   (kecamatan, kelurahan, kategori, nama_fasilitas, alamat, latitude, longitude)
 SELECT

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require dirname(__DIR__) . '/csrf.php';
 
+// Mengamankan nilai yang akan ditampilkan kembali ke HTML.
 function e(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -17,8 +18,11 @@ function e(string $value): string
 </head>
 <body>
     <h2>Tambah Fasilitas Kesehatan</h2>
+    <!-- Form mengirim data baru ke save.php menggunakan metode POST. -->
     <form action="save.php" method="post" id="form-input">
+        <!-- Token tersembunyi dipakai server untuk memeriksa permintaan formulir. -->
         <input type="hidden" name="csrf_token" value="<?= e(csrf_token()) ?>">
+        <!-- Kolom teks fasilitas dibatasi panjangnya agar sesuai skema database. -->
         <label for="kecamatan">Kecamatan:</label><br>
         <input type="text" id="kecamatan" name="kecamatan" maxlength="100" required><br>
         <label for="kelurahan">Kelurahan:</label><br>
@@ -29,6 +33,7 @@ function e(string $value): string
         <input type="text" id="nama_fasilitas" name="nama_fasilitas" maxlength="150" required><br>
         <label for="alamat">Alamat:</label><br>
         <input type="text" id="alamat" name="alamat" maxlength="255" required><br>
+        <!-- Latitude dan longitude dibatasi sesuai rentang koordinat geografis. -->
         <label for="latitude">Latitude:</label><br>
         <input type="number" id="latitude" name="latitude" min="-90" max="90" step="any" required><br>
         <label for="longitude">Longitude:</label><br>
@@ -38,6 +43,7 @@ function e(string $value): string
     <p id="informasi"></p>
     <p><a href="../index.php">Kembali</a></p>
     <script>
+        // Validasi di browser memberi umpan balik sebelum formulir dikirim ke server.
         document.getElementById('form-input').addEventListener('submit', function (event) {
             const form = event.currentTarget;
             const latitude = Number(form.elements.latitude.value);

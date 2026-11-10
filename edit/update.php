@@ -1,11 +1,13 @@
 <?php
 declare(strict_types=1);
 
+// Pembaruan data hanya boleh dilakukan melalui pengiriman formulir POST.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php', true, 303);
     exit;
 }
 
+// Memeriksa token keamanan dan ID data sebelum menerima perubahan.
 require dirname(__DIR__) . '/csrf.php';
 if (!csrf_token_is_valid($_POST['csrf_token'] ?? null)) {
     http_response_code(403);
@@ -18,6 +20,7 @@ if ($id === false || $id === null || $id < 1) {
     exit('ID data tidak valid.');
 }
 
+// Menentukan kolom teks dan batas karakter yang mengikuti struktur tabel.
 $fields = ['kecamatan', 'kelurahan', 'kategori', 'nama_fasilitas', 'alamat'];
 $values = [];
 $limits = [
@@ -28,6 +31,7 @@ $limits = [
     'alamat' => 255,
 ];
 $errors = [];
+// Membersihkan spasi tepi dan mengumpulkan kesalahan validasi kolom teks.
 foreach ($fields as $field) {
     $value = $_POST[$field] ?? null;
     $values[$field] = is_string($value) ? trim($value) : '';
@@ -36,6 +40,7 @@ foreach ($fields as $field) {
     }
 }
 
+// Memastikan latitude dan longitude dapat disimpan sebagai koordinat geografis.
 $latitudeInput = $_POST['latitude'] ?? null;
 $longitudeInput = $_POST['longitude'] ?? null;
 if (!is_string($latitudeInput) || trim($latitudeInput) === '' || !is_numeric($latitudeInput) || (float) $latitudeInput < -90 || (float) $latitudeInput > 90) {
@@ -45,6 +50,7 @@ if (!is_string($longitudeInput) || trim($longitudeInput) === '' || !is_numeric($
     $errors[] = 'Longitude harus berupa angka antara -180 dan 180.';
 }
 
+// Mengembalikan pesan kesalahan tanpa menjalankan query pembaruan.
 if ($errors !== []) {
     http_response_code(422);
     ?>
@@ -56,6 +62,7 @@ if ($errors !== []) {
     exit;
 }
 
+// Memperbarui baris berdasarkan ID dengan prepared statement.
 require dirname(__DIR__) . '/db.php';
 $latitude = (float) $latitudeInput;
 $longitude = (float) $longitudeInput;
@@ -65,6 +72,7 @@ $stmt = $conn->prepare(
      WHERE id = ?'
 );
 
+// Mengikat nilai teks, koordinat desimal, dan ID ke parameter query UPDATE.
 if ($stmt === false) {
     http_response_code(500);
     exit('Pernyataan pembaruan tidak dapat disiapkan.');
@@ -85,6 +93,8 @@ if (!$stmt->execute()) {
     http_response_code(500);
     exit('Data gagal diperbarui. Periksa struktur tabel fasilitas_kesehatan.');
 }
+// Nol baris berubah dapat berarti nilainya sama atau ID tidak ditemukan;
+// query pemeriksaan di bawah membedakan kedua kondisi tersebut.
 if ($stmt->affected_rows === 0) {
     $stmt->close();
     $check = $conn->prepare('SELECT id FROM fasilitas_kesehatan WHERE id = ?');
@@ -107,6 +117,7 @@ if ($stmt->affected_rows === 0) {
     $stmt->close();
 }
 
+// Menutup koneksi dan kembali ke daftar dengan pesan pembaruan berhasil.
 $conn->close();
 header('Location: ../index.php?status=updated', true, 303);
 exit;

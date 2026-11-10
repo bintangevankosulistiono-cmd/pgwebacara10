@@ -1,17 +1,20 @@
 <?php
 declare(strict_types=1);
 
+// Endpoint ini hanya memproses pengiriman formulir dengan metode POST.
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php', true, 303);
     exit;
 }
 
+// Menolak pengiriman jika token formulir tidak cocok dengan token sesi.
 require dirname(__DIR__) . '/csrf.php';
 if (!csrf_token_is_valid($_POST['csrf_token'] ?? null)) {
     http_response_code(403);
     exit('Permintaan tidak valid. Muat ulang halaman lalu coba kembali.');
 }
 
+// Daftar kolom teks dan batas karakter yang harus sesuai dengan tabel SQL.
 $fields = ['kecamatan', 'kelurahan', 'kategori', 'nama_fasilitas', 'alamat'];
 $values = [];
 $limits = [
@@ -22,6 +25,7 @@ $limits = [
     'alamat' => 255,
 ];
 $errors = [];
+// Membersihkan spasi dan memeriksa semua kolom teks yang dikirim pengguna.
 foreach ($fields as $field) {
     $value = $_POST[$field] ?? null;
     $values[$field] = is_string($value) ? trim($value) : '';
@@ -30,6 +34,7 @@ foreach ($fields as $field) {
     }
 }
 
+// Memastikan koordinat berupa angka dan berada dalam rentang yang sah.
 $latitudeInput = $_POST['latitude'] ?? null;
 $longitudeInput = $_POST['longitude'] ?? null;
 if (!is_string($latitudeInput) || trim($latitudeInput) === '' || !is_numeric($latitudeInput) || (float) $latitudeInput < -90 || (float) $latitudeInput > 90) {
@@ -39,6 +44,7 @@ if (!is_string($longitudeInput) || trim($longitudeInput) === '' || !is_numeric($
     $errors[] = 'Longitude harus berupa angka antara -180 dan 180.';
 }
 
+// Jika input tidak valid, tampilkan semua pesan kesalahan tanpa menyimpan data.
 if ($errors !== []) {
     http_response_code(422);
     ?>
@@ -50,6 +56,7 @@ if ($errors !== []) {
     exit;
 }
 
+// Menyimpan fasilitas baru dengan prepared statement agar input tidak menjadi SQL.
 require dirname(__DIR__) . '/db.php';
 $latitude = (float) $latitudeInput;
 $longitude = (float) $longitudeInput;
@@ -58,6 +65,7 @@ $stmt = $conn->prepare(
      VALUES (?, ?, ?, ?, ?, ?, ?)'
 );
 
+// Mengikat nilai ke parameter query dengan tipe teks dan angka yang sesuai.
 if ($stmt === false) {
     http_response_code(500);
     exit('Pernyataan penyimpanan tidak dapat disiapkan.');
@@ -78,6 +86,7 @@ if (!$stmt->execute()) {
     exit('Data gagal disimpan. Periksa struktur tabel fasilitas_kesehatan.');
 }
 
+// Setelah berhasil, tutup koneksi dan kembali ke halaman daftar.
 $stmt->close();
 $conn->close();
 header('Location: ../index.php?status=saved', true, 303);
