@@ -29,9 +29,10 @@ foreach ($rows as $row) {
 
     $mapPoints[] = [
         'id' => (int) $row['id'],
-        'nama' => (string) $row['nama_fasilitas'],
-        'kategori' => (string) $row['kategori'],
-        'alamat' => (string) $row['alamat'],
+        // Teks popup di-escape karena Leaflet menampilkan isi popup sebagai HTML.
+        'nama' => htmlspecialchars((string) $row['nama_fasilitas'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        'kategori' => htmlspecialchars((string) $row['kategori'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
+        'alamat' => htmlspecialchars((string) $row['alamat'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'),
         'latitude' => $latitude,
         'longitude' => $longitude,
     ];
@@ -53,30 +54,18 @@ function e(string|int|float|null $value): string
     <!-- Leaflet CSS mengatur tampilan peta, kontrol, dan penanda. -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
     <style>
-        /* Aturan dasar untuk tata letak halaman, panel, tabel, dan peta. */
-        body { margin: 0; color: #1f2937; background: #f3f6f8; font-family: Arial, sans-serif; }
-        main { max-width: 1200px; margin: 0 auto; padding: 24px; }
-        h1 { margin-top: 0; }
-        .toolbar { margin-bottom: 20px; }
-        .panel { margin: 18px 0; padding: 18px; background: #fff; border-radius: 10px; box-shadow: 0 2px 10px #10203012; }
-        #map { width: 100%; height: 440px; border-radius: 8px; }
-        .table-wrap { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; background: #fff; }
-        th, td { padding: 9px 10px; border: 1px solid #d8e0e7; text-align: left; vertical-align: top; }
-        th { background: #edf3f7; }
-        td form { display: inline; }
-        button, .button-link { display: inline-block; padding: 6px 9px; border: 0; border-radius: 5px; color: #fff; background: #176b87; font: inherit; text-decoration: none; cursor: pointer; }
-        td form button { background: #a33333; }
-        .map-popup h3 { margin: 0 0 6px; }
-        /* Mengurangi jarak dan tinggi peta agar lebih nyaman di layar ponsel. */
-        @media (max-width: 600px) { main { padding: 14px; } #map { height: 360px; } }
+        /* Tampilan sederhana untuk halaman dan tabel. */
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #map { height: 400px; }
+        table { border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 6px; text-align: left; }
     </style>
 </head>
 <body>
 <main>
     <h1>Data Fasilitas Kesehatan Kota Malang</h1>
     <!-- Tautan menuju formulir penambahan fasilitas baru. -->
-    <p class="toolbar"><a class="button-link" href="input/index.php">Tambah data</a></p>
+    <p><a href="input/index.php">Tambah data</a></p>
     <?php
     // Pesan ditentukan di server agar parameter URL tidak langsung ditampilkan.
     $messages = [
@@ -91,7 +80,7 @@ function e(string|int|float|null $value): string
     <?php endif; ?>
     <?php if ($rows !== []): ?>
         <!-- Wadah peta hanya dibuat jika database memiliki data fasilitas. -->
-        <section class="panel" aria-labelledby="map-heading">
+        <section aria-labelledby="map-heading">
             <h2 id="map-heading">Peta Lokasi Fasilitas</h2>
             <?php if ($mapPoints !== []): ?>
                 <div id="map" aria-label="Peta lokasi fasilitas kesehatan"></div>
@@ -100,9 +89,9 @@ function e(string|int|float|null $value): string
             <?php endif; ?>
         </section>
         <!-- Tabel menampilkan data lengkap dan aksi lihat, edit, serta hapus. -->
-        <section class="panel" aria-labelledby="table-heading">
+        <section aria-labelledby="table-heading">
         <h2 id="table-heading">Daftar Fasilitas</h2>
-        <div class="table-wrap"><table>
+        <table>
             <thead>
                 <tr>
                     <th>Kecamatan</th>
@@ -139,7 +128,7 @@ function e(string|int|float|null $value): string
                     </tr>
                 <?php endforeach; ?>
             </tbody>
-        </table></div>
+        </table>
         </section>
     <?php else: ?>
         <p>0 results</p>
@@ -168,20 +157,13 @@ function e(string|int|float|null $value): string
         const markersById = new Map();
         facilityPoints.forEach((facility) => {
             const marker = L.marker([facility.latitude, facility.longitude]).addTo(facilityLayer);
-
-            // Popup dibangun dengan textContent agar teks database tidak diperlakukan sebagai HTML.
-            const popup = document.createElement('div');
-            popup.className = 'map-popup';
-            const title = document.createElement('h3');
-            title.textContent = facility.nama;
-            const category = document.createElement('p');
-            category.textContent = 'Kategori: ' + facility.kategori;
-            const address = document.createElement('p');
-            address.textContent = 'Alamat: ' + facility.alamat;
-            const coordinates = document.createElement('small');
-            coordinates.textContent = facility.latitude + ', ' + facility.longitude;
-            popup.append(title, category, address, coordinates);
-            marker.bindPopup(popup);
+            // Isi popup berisi nama, kategori, alamat, dan koordinat fasilitas.
+            marker.bindPopup(
+                '<b>' + facility.nama + '</b><br>' +
+                'Kategori: ' + facility.kategori + '<br>' +
+                'Alamat: ' + facility.alamat + '<br>' +
+                facility.latitude + ', ' + facility.longitude
+            );
             markersById.set(String(facility.id), marker);
         });
 
